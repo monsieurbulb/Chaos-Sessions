@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chaos Sessions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              chaos: {
+                black: 'var(--color-bg)',
+                dark: 'var(--color-panel)', // mapping dark to panel for simpler variable mapping
+                panel: 'var(--color-panel)',
+                border: 'var(--color-border)',
+                text: 'var(--color-text)',
+                muted: 'var(--color-muted)',
+                organic: 'var(--color-organic)',
+                accent: 'var(--color-accent)',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['Fira Code', 'monospace'],
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in': 'fadeIn 0.5s ease-out',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        /* Default (Light Mode) */
+        --color-bg: #ffffff;
+        --color-panel: #f4f4f5;
+        --color-border: #e4e4e7;
+        --color-text: #18181b;
+        --color-muted: #71717a;
+        --color-organic: #2a9d8f;
+        --color-accent: #10b981;
+      }
+
+      .dark {
+        /* Dark Mode */
+        --color-bg: #0a0a0a;
+        --color-panel: #1a1a1a;
+        --color-border: #2a2a2a;
+        --color-text: #e5e5e5;
+        --color-muted: #a3a3a3;
+        --color-organic: #354f52;
+        --color-accent: #84a98c;
+      }
+
+      body {
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        font-family: 'Inter', sans-serif;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.3.1,react-dom@18.3.1",
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body class="dark">
+    <div id="root"></div>
+  </body>
+</html>
