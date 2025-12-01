@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Home } from './pages/Home';
@@ -11,6 +10,7 @@ import { Navbar } from './components/Navbar';
 import { ConnectModal } from './components/ConnectModal';
 import { User, ViewMode, VideoSession, LiveEvent, Ticket, Language, Theme } from './types';
 import { connectWallet, fetchEvents, subscribeToEvent } from './services/mockServices';
+import { fetchVideos } from './services/contentService'; // NEW IMPORT
 import { MOCK_VIDEOS } from './constants';
 import { dictionaries } from './translations';
 
@@ -28,7 +28,8 @@ const App: React.FC = () => {
     points: 0,
     addressBook: [],
   });
-  // Maintain videos in state to allow CMS updates
+  
+  // Videos state: Initialize with Mock, then fetch real
   const [videos, setVideos] = useState<VideoSession[]>(MOCK_VIDEOS);
   const [events, setEvents] = useState<LiveEvent[]>([]);
   
@@ -44,13 +45,21 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
-  // Load events on mount
+  // Load events & videos on mount
   useEffect(() => {
-    const loadEvents = async () => {
-      const data = await fetchEvents();
-      setEvents(data);
+    const loadData = async () => {
+      // 1. Fetch Events (still mocked via Feather simulation)
+      const eventData = await fetchEvents();
+      setEvents(eventData);
+
+      // 2. Fetch Videos (Now from Supabase)
+      const supabaseVideos = await fetchVideos();
+      if (supabaseVideos.length > 0) {
+        // If we have DB data, use it. Otherwise fall back to mock constants
+        setVideos(supabaseVideos);
+      }
     };
-    loadEvents();
+    loadData();
   }, []);
 
   const handleConnect = async () => {

@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { VideoSession } from '../types';
-import { pinToIpfs, mintFeather } from '../services/mockServices';
+import { pinToIpfs } from '../services/mockServices'; // We still mock IPFS pinning for now, or replace with Supabase
+import { uploadThumbnail, publishVideo } from '../services/contentService'; // NEW SERVICES
 import { Upload, FileVideo, Feather, CheckCircle, Box, Hash } from 'lucide-react';
 
 interface CMSProps {
@@ -17,8 +17,9 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
     videoUrl: '',
   });
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'pinning' | 'minting' | 'success'>('idle');
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'minting' | 'success' | 'error'>('idle');
   const [lastMint, setLastMint] = useState<VideoSession | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -30,28 +31,41 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
     e.preventDefault();
     if (!thumbnailFile) return;
 
-    setStatus('pinning');
-    
-    // 1. Pin Asset to IPFS
-    const cid = await pinToIpfs(thumbnailFile);
-    
-    setStatus('minting');
+    try {
+      setStatus('uploading');
+      
+      // 1. Upload Thumbnail to Supabase Storage
+      const publicUrl = await uploadThumbnail(thumbnailFile);
+      
+      if (!publicUrl) {
+          throw new Error("Failed to upload thumbnail");
+      }
 
-    // 2. Create System Remark (Mint Feather)
-    // We use a fake URL creator for the thumbnail preview in this demo, 
-    // but in reality we'd use the IPFS gateway URL
-    const previewUrl = URL.createObjectURL(thumbnailFile);
-    
-    const newVideo = await mintFeather({
-      ...formData,
-      thumbnailUrl: previewUrl,
-    }, cid);
+      setStatus('minting');
 
-    onAddVideo(newVideo);
-    setLastMint(newVideo);
-    setStatus('success');
-    
-    // Reset form after delay? No, let them see the success.
+      // 2. Generate a "Mock" IPFS CID for provenance display (since we are storing in Supabase for now)
+      // In a real Web3 flow, we would upload to IPFS here.
+      const mockCid = await pinToIpfs(thumbnailFile); 
+      
+      // 3. Save to Supabase DB ("Mint Feather")
+      const newVideo = await publishVideo({
+        ...formData,
+        thumbnailUrl: publicUrl,
+      }, mockCid);
+
+      if (!newVideo) {
+          throw new Error("Failed to save to database");
+      }
+
+      onAddVideo(newVideo);
+      setLastMint(newVideo);
+      setStatus('success');
+
+    } catch (err: any) {
+        console.error(err);
+        setErrorMsg(err.message || "An error occurred");
+        setStatus('error');
+    }
   };
 
   const resetForm = () => {
@@ -59,6 +73,7 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
     setThumbnailFile(null);
     setStatus('idle');
     setLastMint(null);
+    setErrorMsg('');
   };
 
   return (
@@ -69,7 +84,7 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
             <Feather className="w-6 h-6 text-chaos-accent" />
             Feather Protocol CMS
           </h1>
-          <p className="text-chaos-muted font-mono text-xs mt-2">NETWORK ADMINISTRATION // NODE: ACTIVE</p>
+          <p className="text-chaos-muted font-mono text-xs mt-2">NETWORK ADMINISTRATION // NODE: ACTIVE (SUPABASE CONNECTED)</p>
         </div>
         <button onClick={onExit} className="text-xs text-chaos-muted hover:text-white underline">
           Exit Terminal
@@ -109,6 +124,13 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
             Create Another
           </button>
         </div>
+      )}
+
+      {status === 'error' && (
+          <div className="bg-red-500/10 border border-red-500 p-4 rounded text-red-500 mb-6">
+              Error: {errorMsg}
+              <button onClick={resetForm} className="ml-4 underline">Try Again</button>
+          </div>
       )}
 
       {status !== 'success' && (
@@ -185,7 +207,7 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
 
               {/* Asset Upload */}
               <div className="pt-6 border-t border-chaos-border">
-                <label className="block text-xs font-mono text-chaos-muted mb-2">THUMBNAIL ASSET (IPFS PIN)</label>
+                <label className="block text-xs font-mono text-chaos-muted mb-2">THUMBNAIL ASSET</label>
                 <div className="relative border-2 border-dashed border-chaos-border rounded-lg p-8 hover:bg-black/20 transition-colors text-center cursor-pointer group">
                   <input 
                     type="file" 
@@ -197,13 +219,13 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
                     <div className="flex flex-col items-center text-chaos-accent">
                       <CheckCircle className="w-8 h-8 mb-2" />
                       <span className="text-sm font-medium">{thumbnailFile.name}</span>
-                      <span className="text-xs text-chaos-muted mt-1">Ready to pin</span>
+                      <span className="text-xs text-chaos-muted mt-1">Ready to upload</span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center text-chaos-muted group-hover:text-chaos-text">
                       <Upload className="w-8 h-8 mb-2" />
                       <span className="text-sm">Drop image or click to browse</span>
-                      <span className="text-xs mt-1">Images will be pinned to IPFS</span>
+                      <span className="text-xs mt-1">Uploaded to Supabase Storage</span>
                     </div>
                   )}
                 </div>
@@ -211,20 +233,20 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
 
               <button
                 type="submit"
-                disabled={status !== 'idle'}
+                disabled={status !== 'idle' && status !== 'error'}
                 className="w-full py-4 bg-chaos-text text-black font-medium text-sm uppercase tracking-widest hover:bg-white transition-colors rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
-                {status === 'idle' && 'Mint Feather'}
-                {status === 'pinning' && (
+                {(status === 'idle' || status === 'error') && 'Mint Feather'}
+                {status === 'uploading' && (
                   <>
                     <Box className="w-4 h-4 animate-bounce" />
-                    Pinning to IPFS...
+                    Uploading Assets...
                   </>
                 )}
                 {status === 'minting' && (
                    <>
                     <Hash className="w-4 h-4 animate-spin" />
-                    Confirming Transaction...
+                    Updating Database...
                   </>
                 )}
               </button>
@@ -239,7 +261,7 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
                    Provenance Info
                 </h3>
                 <p className="text-sm text-chaos-muted leading-relaxed mb-4">
-                  By minting this feather, you are creating an immutable record on the underlying blockchain. 
+                  By minting this feather, you are creating an immutable record on the underlying database. 
                 </p>
                 <ul className="text-xs text-chaos-muted space-y-2 font-mono">
                   <li className="flex items-center gap-2">
@@ -248,11 +270,11 @@ export const CMS: React.FC<CMSProps> = ({ onAddVideo, onExit }) => {
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-chaos-organic"></span>
-                    Assets pinned (Hot/Cold)
+                    Assets stored in Bucket
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-chaos-organic"></span>
-                    Indexable by Feather
+                    Indexable by Feather (Simulated)
                   </li>
                 </ul>
              </div>

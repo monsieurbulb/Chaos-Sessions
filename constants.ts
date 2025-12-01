@@ -5,7 +5,7 @@ export const MOCK_VIDEOS: VideoSession[] = [
   {
     id: 'v1',
     title: 'Relativistic Economics',
-    guest: 'Dr. A. Vance',
+    guest: 'Dr. B. Vance',
     description: 'Dispatches from the frontiers of collective intelligence',
     thumbnailUrl: 'https://picsum.photos/800/450?grayscale&blur=2',
     videoUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',

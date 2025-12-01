@@ -1,7 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Play, Lock, Maximize2, Volume2, VolumeX } from 'lucide-react';
 import { VideoSession, Translations } from '../types';
+import Hls from 'hls.js';
 
 interface VideoPlayerProps {
   video: VideoSession | null;
@@ -14,6 +15,41 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, isAuthenticated
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // HLS Playback Logic
+  useEffect(() => {
+    let hls: Hls | null = null;
+
+    if (isPlaying && video && videoRef.current) {
+      if (Hls.isSupported()) {
+        hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+        });
+        hls.loadSource(video.videoUrl);
+        hls.attachMedia(videoRef.current);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoRef.current?.play().catch(e => console.error("Auto-play blocked:", e));
+        });
+
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (Safari)
+        videoRef.current.src = video.videoUrl;
+        videoRef.current.addEventListener('loadedmetadata', () => {
+          videoRef.current?.play().catch(e => console.error("Auto-play blocked:", e));
+        });
+      }
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [isPlaying, video]);
+
 
   const toggleFullscreen = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -74,9 +110,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ video, isAuthenticated
     <div ref={containerRef} className="relative w-full aspect-video bg-black border border-chaos-border rounded-lg overflow-hidden shadow-2xl">
       {isPlaying ? (
         <video 
-          src={video.videoUrl} 
+          ref={videoRef}
           controls 
-          autoPlay 
           muted={isMuted}
           className="w-full h-full object-contain"
         >
